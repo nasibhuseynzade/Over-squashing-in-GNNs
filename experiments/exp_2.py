@@ -83,3 +83,43 @@ def train(model, loader, optimizer, criterion, epochs=100):
         print(f'Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}')
     return all_losses
 
+# Main experiment function
+def run_experiment():
+    input_dim = dataset.num_features
+    hidden_dim = 64
+    output_dim = 1  # Assuming a single target property for simplicity
+    
+    # Initialize models
+    gnn_model = GNN(input_dim, hidden_dim, output_dim)
+    gat_model = GAT(input_dim, hidden_dim, output_dim)
+    gin_model = GIN(input_dim, hidden_dim, output_dim)
+
+    # Optimizers and Loss
+    optimizer_gnn = torch.optim.Adam(gnn_model.parameters(), lr=0.001)
+    optimizer_gat = torch.optim.Adam(gat_model.parameters(), lr=0.001)
+    optimizer_gin = torch.optim.Adam(gin_model.parameters(), lr=0.001)
+    criterion = torch.nn.MSELoss()  # Use MSE for regression tasks, or CrossEntropy for classification
+    
+    # Train each model
+    print("Training GNN Model...")
+    gnn_losses = train(gnn_model, loader, optimizer_gnn, criterion)
+    
+    print("Training GAT Model...")
+    gat_losses = train(gat_model, loader, optimizer_gat, criterion)
+    
+    print("Training GIN Model...")
+    gin_losses = train(gin_model, loader, optimizer_gin, criterion)
+
+    # Plot Loss Graph
+    plt.figure(figsize=(10, 6))
+    plt.plot(gnn_losses, label='GNN Loss')
+    plt.plot(gat_losses, label='GAT Loss')
+    plt.plot(gin_losses, label='GIN Loss')
+    plt.title('Loss Curves for GNN, GAT, and GIN Models')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+
+# Run the experiment
+run_experiment()
