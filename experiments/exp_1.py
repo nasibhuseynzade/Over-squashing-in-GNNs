@@ -1,101 +1,57 @@
-# First experiment
-# Calculating commute time changes of original dataset and FoSR modified dataset
-
 import os, sys
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(CURRENT_DIR))
-from metrics.commute_time import aggregate_commute_times
-from methods._fosr import apply_fosr
-from torch_geometric.datasets import ZINC, QM9
-from torch_geometric.utils import to_networkx
-from methods import _fosr
-import numpy as np
-import networkx as nx
-from math import inf
-from numba import jit, int64
 
+import torch
+from torch_geometric.transforms import NormalizeFeatures
+import matplotlib.pyplot as plt
+import pickle
 
-def process_dataset(dataset_name):
-    if dataset_name.lower() == 'zinc':
-        dataset = ZINC(root='/tmp/ZINC', subset=False)  # Using the full dataset
-    elif dataset_name.lower() == 'qm9':
-        dataset = QM9(root='/tmp/QM9')
-    else:
-        raise ValueError("Invalid dataset name. Choose 'ZINC' or 'QM9'.")
+from preprocessing.fosr import edge_rewire
+from experiments.training import train_model
+from models.models import GATModel
+
+# Device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+dataset = QM9(root='./data/QM9')
+
+fosr_dataset=dataset.copy()
+
+print("Rewiring started")
+for i in range(len(dataset)):
     
-    total_original_edges = 0
-    total_fosr_edges = 0
-    total_original_commute_time = 0
-    total_fosr_commute_time = 0
-    total_graphs = len(dataset)
+    edge_index, edge_type, _ = edge_rewire(dataset[i].edge_index.numpy(), num_iterations=50)
+    fosr_dataset[i].edge_index = torch.tensor(edge_index)
+    fosr_dataset[i].edge_type = torch.tensor(edge_type)
+print("Rewiring ended")
+
+# Run experiments and plot results for depths 3, 4, and 5
+depths = [3, 4, 5]
+num_epochs = 50
+
+fig, axs = plt.subplots(1, 3, figsize=(18, 6))
+
+fig.suptitle("R2 Score Across Different number of layers for GAT Model", fontsize=16)
+
+for i, depth in enumerate(depths):
+    print(f"\nTraining GAT model with depth {depth}\n" + "-"*80)
+    model=GATModel(num_features=dataset.num_features, num_classes=1, depth=depth).to(device)
+    train_losses, original_r2_scores, rewired_r2_scores = train_model(model, dataset, fosr_dataset, target_idx=0, num_epochs=num_epochs)
     
-    for i, data in enumerate(dataset):
-        # Convert to NetworkX graph
-        G_original = to_networkx(data, to_undirected=True)
-        
-        # Get edge index from the graph
-        edge_index = np.array(list(G_original.edges())).T
-        
-        # Calculate max new edges (10% of original edges)
-        max_new_edges = int(0.1 * G_original.number_of_edges())
-        
-        # Apply FOSR to get new edge index
-        new_edge_index, _ = apply_fosr(edge_index, max_new_edges)
-        
-        # Create a new graph with the rewired edges
-        G_fosr = nx.Graph()
-        G_fosr.add_nodes_from(range(data.num_nodes))
-        new_edges = list(zip(new_edge_index[0], new_edge_index[1]))
-        G_fosr.add_edges_from(new_edges)
-        
-        # Calculate commute times
-        original_commute_time = aggregate_commute_times(G_original)
-        fosr_commute_time = aggregate_commute_times(G_fosr)
-        
-        total_original_edges += G_original.number_of_edges()
-        total_fosr_edges += G_fosr.number_of_edges()
-        total_original_commute_time += original_commute_time
-        total_fosr_commute_time += fosr_commute_time
-        
-        if (i + 1) % 10000 == 0:
-            print(f"Processed {i+1}/{total_graphs} graphs...")
-    
-    return total_original_edges, total_fosr_edges, total_original_commute_time, total_fosr_commute_time, total_graphs
+    axs[i].plot(range(num_epochs), original_r2_scores, label='Original Dataset R2', color='blue')
+    axs[i].plot(range(num_epochs), rewired_r2_scores, label='Rewired Dataset R2', color='orange')
+    axs[i].set_title(f'Depth = {depth}')
+    axs[i].set_xlabel('Epochs')
+    axs[i].set_ylabel('R2 Score')
+    axs[i].legend()
 
-# Function to print summary statistics
-def print_summary_to_file(file, original_edges, fosr_edges, original_commute_time, fosr_commute_time, total_graphs, dataset_name):
-    summary = (
-        f"\nSummary for {dataset_name} dataset:\n"
-        f"Total graphs processed: {total_graphs}\n"
-        f"Number of original edges: {original_edges}\n"
-        f"Number of edges in FOSR dataset: {fosr_edges}\n"
-        f"Difference in edges: {fosr_edges - original_edges}\n"
-        f"Percentage of edges added: {((fosr_edges - original_edges) / original_edges) * 100:.2f}%\n"
-        f"Average original commute time: {original_commute_time / total_graphs:.4f}\n"
-        f"Average FOSR commute time: {fosr_commute_time / total_graphs:.4f}\n"
-        f"Percentage change in commute time: {((fosr_commute_time - original_commute_time) / original_commute_time) * 100:.2f}%\n"
-    )
+plt.tight_layout()
 
-    # Print to console
-    print(summary)
+results_folder='/home/huseynzade/SRP/results'
+# Save the plot to the results folder before showing it
+plot_path = os.path.join(results_folder, 'GAT_depth_fosr.png')
+plt.savefig(plot_path, format='png')
 
-    # Write the summary to the file
-    file.write(summary)
-
-# Create the results folder if it doesn't exist
-os.makedirs("results", exist_ok=True)
-
-# Open the results file in write mode
-with open("results/exp1_results.txt", "w") as f:
-
-    # Process ZINC dataset
-    print("Processing ZINC dataset...")
-    zinc_original, zinc_fosr, zinc_original_ct, zinc_fosr_ct, zinc_graphs = process_dataset('ZINC')
-
-    # Process QM9 dataset
-    print("\nProcessing QM9 dataset...")
-    qm9_original, qm9_fosr, qm9_original_ct, qm9_fosr_ct, qm9_graphs = process_dataset('QM9')
-
-    # Print summaries to console and file
-    print_summary_to_file(f, zinc_original, zinc_fosr, zinc_original_ct, zinc_fosr_ct, zinc_graphs, "ZINC")
-    print_summary_to_file(f, qm9_original, qm9_fosr, qm9_original_ct, qm9_fosr_ct, qm9_graphs, "QM9")
+# Show the plot in the console (optional)
+plt.show()
