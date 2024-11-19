@@ -1,24 +1,8 @@
 import torch
-from torch_geometric.datasets import QM9
-from torch_geometric.utils import to_networkx, to_undirected
-import networkx as nx
-import numpy as np
 import torch.nn as nn
-from scipy.linalg import pinv
-from math import inf
-from numba import jit, int64
-from tqdm import tqdm
-from torch_geometric.utils import to_scipy_sparse_matrix
 import torch.nn.functional as F
-from torch.nn import ModuleList, Dropout, ReLU
-from torch_geometric.nn import GCNConv, GATConv, GINConv, global_mean_pool
-from torch_geometric.loader import DataLoader
-from torch_geometric.transforms import NormalizeFeatures
-import matplotlib.pyplot as plt
-from sklearn.metrics import r2_score
-from torch_geometric.nn import GINConv, global_add_pool, BatchNorm
-import matplotlib.pyplot as plt
-from torch_geometric.data import DataLoader as GeoDataLoader
+from torch_geometric.nn import GATConv, GINConv, global_add_pool, BatchNorm, global_mean_pool
+
 
 class GINModel(torch.nn.Module):
     def __init__(self, num_features, num_classes=1, hidden_dim=64, depth=3):
@@ -64,7 +48,7 @@ class GINModel(torch.nn.Module):
 
 
 class GATModel(nn.Module):
-    def __init__(self, num_features, num_classes, hidden_dim=64, depth=3):
+    def __init__(self, num_features, num_classes=1, hidden_dim=64, depth=3):
         super(GATModel, self).__init__()
         self.layers = nn.ModuleList()
 
@@ -94,4 +78,37 @@ class GATModel(nn.Module):
         # Final classification layer
         x = self.fc(x)
 
+        return x
+    
+
+class GAT_zinc(torch.nn.Module):
+    def __init__(self, num_features, num_classes=1, hidden_dim=64, depth=3, heads=8):
+        super(GAT_zinc, self).__init__()
+        
+        # Initialize GAT layers
+        self.convs = torch.nn.ModuleList()
+        # First GAT layer
+        self.convs.append(GATConv(num_features, hidden_dim, heads=heads))
+        # Hidden GAT layers
+        for _ in range(depth - 1):
+            self.convs.append(GATConv(hidden_dim * heads, hidden_dim, heads=heads))
+        
+        # Linear layer for the final output
+        self.lin = torch.nn.Linear(hidden_dim * heads, num_classes)  # Predicting a scalar value (regression)
+
+    def forward(self, batch):
+        # Extract components from the batch object
+        x, edge_index, batch_vector = batch.x, batch.edge_index, batch.batch
+
+        # Pass through GAT layers
+        for conv in self.convs:
+            x = conv(x, edge_index)
+            x = F.elu(x)  # Use ELU activation after each GAT layer
+            x = F.dropout(x, p=0.5, training=self.training)  # Dropout for regularization
+        
+        # Global mean pooling to aggregate node features into graph-level features
+        x = global_mean_pool(x, batch_vector)
+        
+        # Final linear layer for regression
+        x = self.lin(x)
         return x
