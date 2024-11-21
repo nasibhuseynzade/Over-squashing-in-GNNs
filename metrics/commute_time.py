@@ -32,7 +32,7 @@ def compute_commute_time(graph):
     return commute_time
 
 
-def aggregate_commute_times(graph):
+def avg_commute_times(graph):
     """
     Aggregate the commute times for a single graph.
     :param graph: A NetworkX graph object.
