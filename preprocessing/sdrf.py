@@ -1,3 +1,12 @@
+import os, sys
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(CURRENT_DIR))
+
+from numba import jit, prange
+import numpy as np
+import torch
+from torch_geometric.utils import to_networkx, from_networkx
+
 
 def softmax(a, tau=1):
     exp_a = np.exp(a * tau)
@@ -177,7 +186,7 @@ def sdrf(
     A = np.zeros(shape=(N, N))
     m = data.edge_index.shape[1]
 
-    if not "edge_type" in data.keys:
+    if not "edge_type" in data.keys():
         edge_type = np.zeros(m, dtype=int)
     else:
         edge_type = data.edge_type
