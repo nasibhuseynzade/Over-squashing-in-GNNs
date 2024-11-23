@@ -6,15 +6,17 @@ import torch
 from torch_geometric.datasets import QM9
 from torch_geometric.transforms import NormalizeFeatures
 import matplotlib.pyplot as plt
+import pickle
 
 from preprocessing.fosr import edge_rewire
-from experiments.training import train_model
+from models.training import train_model
 from models.models import GINModel
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-dataset = QM9(root='Users/nasibhuseynzade/Downloads/QM9', transform=NormalizeFeatures())
+with open('/Users/nasibhuseynzade/Downloads/qm9_dataset.pkl','rb') as f:
+   dataset = pickle.load(f)
 
 fosr_dataset=dataset.copy()
 
