@@ -3,9 +3,6 @@
 ## **Overview**  
 Over-squashing is a well-known issue in Graph Neural Networks (GNNs), where long-range dependencies struggle to propagate effectively due to bottlenecks in the graph structure. This project explores techniques to mitigate over-squashing, focusing on **graph rewiring** methods. Specifically, we compare the **State-of-the-Art SDRF method** with our proposed **Commute Time-based SDRF (CT-SDRF)**, evaluating their performance on benchmark datasets **QM9 and ZINC**.  
 
-## **Methods**  
-We employ several experimental setups to analyze different factors affecting over-squashing, including **impact of width, depth, and fully connected graph **. Our approach involves **graph rewiring** techniques to improve connectivity and reduce information bottlenecks while preserving key structural properties.  
-
 ## **Experiments**  
 The experiments are organized into the following files:  
 
