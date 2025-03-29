@@ -1,29 +1,43 @@
-# Mitigation of Over-Squashing in Graph Neural Networks
+# **Mitigation of Over-Squashing in Graph Neural Networks**  
 
-## Overview
+## **Overview**  
+Over-squashing is a well-known issue in Graph Neural Networks (GNNs), where long-range dependencies struggle to propagate effectively due to bottlenecks in the graph structure. This project explores techniques to mitigate over-squashing, focusing on **graph rewiring** methods. Specifically, we compare the **State-of-the-Art SDRF method** with our proposed **Commute Time-based SDRF (CT-SDRF)**, evaluating their performance on benchmark datasets **QM9 and ZINC**.  
 
-This project focuses on mitigating the issue of over-squashing in Graph Neural Networks (GNNs). Over-squashing occurs when important information is lost during the aggregation of node features in GNNs, which can degrade model performance, particularly on large and complex graphs. This repository implements two novel methods to address this challenge: **FoSR (Feature of Structural Relevance)** and **SDRF (Spectral Decomposition with Residual Filtering)**.
+## **Methods**  
+We employ several experimental setups to analyze different factors affecting over-squashing, including **impact of width, depth, and fully connected graph **. Our approach involves **graph rewiring** techniques to improve connectivity and reduce information bottlenecks while preserving key structural properties.  
 
-## Methods
+## **Experiments**  
+The experiments are organized into the following files:  
 
-### FoSR (First order Spectral Rewiring)
-FoSR aims to ...
+- **`width_comparison.py`** – Ablation study on the impact of **network width** in mitigating over-squashing.  
+- **`depth_comparison.py`** – Ablation study on the impact of **network depth** in mitigating over-squashing.  
+- **`fully_connected.py`** – Ablation study on **fully connected nodes** and their effect on graph representation.  
+- **`qm9.py`** – Main experiment comparing **SDRF** and our proposed **CT-SDRF** method on the **QM9 dataset**.  
 
-### SDRF (Stochastic Discrete Ricci Flow)
-SDRF aims to ...
+## **Installation**  
+To set up the project, follow these steps:  
 
-## Measurement Metrics
+1. Clone the repository:  
+   ```bash
+   git clone https://github.com/nasibhuseynzade/Over-squashing-in-GNNs.git
+   cd your-repo-name
+   ```  
+2. Create a virtual environment and activate it:  
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   ```  
+3. Install dependencies:  
+   ```bash
+   pip install -r requirements.txt
+   ```  
 
-To evaluate the effectiveness of the proposed methods, two primary metrics are utilized:
+## **Usage**  
+Run individual experiments using:  
+```bash
+python experiments/qm9.py  
+```  
 
-1. **Average Spectral Gap**: This metric measures the separation between the eigenvalues of the graph Laplacian, providing insights into the graph's connectivity and potential information flow.
+## **Results**  
+Our findings demonstrate that **CT-SDRF** effectively enhances graph connectivity while preserving key structural features, leading to improved model performance compared to standard SDRF. 
 
-2. **Commute Time**: This metric assesses the expected time it takes for a random walker to traverse between two nodes in the graph, offering a measure of the overall efficiency of information propagation.
-
-## Dataset
-
-The proposed methods are tested on the **QM9 dataset**, which consists of a diverse set of molecular graphs. This dataset is widely used in graph-based machine learning tasks, making it suitable for assessing the performance of GNNs.
-
-## Installation
-
-Experiment part will come soon
