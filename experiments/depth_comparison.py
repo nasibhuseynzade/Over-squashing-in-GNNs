@@ -1,5 +1,3 @@
-# R2 Score Across Different depths for GAT Model on QM9
-
 import os, sys
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(CURRENT_DIR))
@@ -7,10 +5,10 @@ sys.path.append(os.path.dirname(CURRENT_DIR))
 import torch
 import matplotlib.pyplot as plt
 import pickle
+import numpy as np
 
-from preprocessing.fosr import edge_rewire
 from models.training import _train_model_new
-from models.models import GATModel, GINModel
+from models.models import GATModel, GINModel, GCNModel
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -22,61 +20,67 @@ except FileNotFoundError:
     with open('/Users/nasibhuseynzade/Downloads/qm9_dataset.pkl','rb') as f:
         dataset = pickle.load(f)
 
-# Define the depths and number of epochs
-depths = [3, 4, 5]
-num_epochs = 3
 
-# First plot: GAT Model
 plt.figure(figsize=(10, 6))
 
-# Plot for each depth on the same axes for GAT
+
+depths = [3, 4, 5, 6]  # Different depths
+num_epochs = 100
+num_runs = 5  # Number of runs per depth
+
+# Dictionary to store results
+results = {}
+
 for depth in depths:
-    print(f"\nTraining GAT model with depth {depth}\n" + "-"*80)
-    gat_model = GATModel(num_features=dataset.num_features, num_classes=1, depth=depth).to(device)
-    gat_r2_scores = train_model_new(gat_model, dataset, batch_size=64, learning_rate=0.0005, target_idx=0, num_epochs=num_epochs)
+    print(f"\nTraining model for Depth = {depth}\n" + "="*80)
     
-    # Plot the R2 scores with a different color for each depth
-    plt.plot(range(num_epochs), gat_r2_scores, label=f'Depth = {depth}')
+    # Store results for this depth
+    gin_r2_all = np.zeros((num_runs, num_epochs))
+    gat_r2_all = np.zeros((num_runs, num_epochs))
+    gcn_r2_all = np.zeros((num_runs, num_epochs))
 
-# Add title and labels for GAT plot
-plt.title("R2 Score Across Different Number of Layers for GAT Model", fontsize=16)
-plt.xlabel('Epochs')
-plt.ylabel('R2 Score')
-plt.legend()
-plt.grid(True, linestyle='--', alpha=0.7)
+    for run in range(num_runs):
+        print(f"\nRun {run+1}/{num_runs}: Training model with depth = {depth}\n" + "-"*80)
 
-# Make the plot look nice
-plt.tight_layout()
+        model1 = GINModel(num_features=dataset.num_features, num_classes=1, depth=depth).to(device)
+        model2 = GATModel(num_features=dataset.num_features, num_classes=1, depth=depth).to(device)
+        model3 = GCNModel(num_features=dataset.num_features, num_classes=1, depth=depth).to(device)
 
-# Save the GAT plot to the results folder
-results_folder = '/Users/nasibhuseynzade/Desktop/SRP_code/results' if os.path.exists('/Users/nasibhuseynzade/Desktop/SRP_code/results') else '/Users/nasibhuseynzade/Desktop/SRP_code/backup_results'
-gat_plot_path = os.path.join(results_folder, 'GAT_depth_comparison.png')
-plt.savefig(gat_plot_path, format='png')
-plt.close()  # Close the current figure before creating the next one
+        # Train the model
+        r2_gin = _train_model_new(model1, dataset, batch_size=64, learning_rate=0.0005, target_idx=0, num_epochs=num_epochs)
+        r2_gat = _train_model_new(model2, dataset, batch_size=64, learning_rate=0.0005, target_idx=0, num_epochs=num_epochs)
+        r2_gcn = _train_model_new(model3, dataset, batch_size=64, learning_rate=0.0005, target_idx=0, num_epochs=num_epochs)
 
-# Second plot: GIN Model
-plt.figure(figsize=(10, 6))
+        # Store results
+        gin_r2_all[run, :] = r2_gin
+        gat_r2_all[run, :] = r2_gat
+        gcn_r2_all[run, :] = r2_gcn
 
-# Plot for each depth on the same axes for GIN
+        # Print individual run results
+        print(f"Run {run+1} - Final GIN R²: {r2_gin[-1]:.4f}, Final GAT R²: {r2_gat[-1]:.4f}, Final GCN R²: {r2_gcn[-1]:.4f}")
+
+    # Compute mean and standard deviation
+    gin_r2_mean = np.mean(gin_r2_all, axis=0)
+    gin_r2_std = np.std(gin_r2_all, axis=0)
+    gat_r2_mean = np.mean(gat_r2_all, axis=0)
+    gat_r2_std = np.std(gat_r2_all, axis=0)
+    gcn_r2_mean = np.mean(gcn_r2_all, axis=0)
+    gcn_r2_std = np.std(gcn_r2_all, axis=0)
+
+    # Store results in dictionary
+    results[depth] = {
+        "gin_r2_mean": gin_r2_mean[-1],
+        "gin_r2_std": gin_r2_std[-1],
+        "gat_r2_mean": gat_r2_mean[-1],
+        "gat_r2_std": gat_r2_std[-1],
+        "gcn_r2_mean": gcn_r2_mean[-1],
+        "gcn_r2_std": gcn_r2_std[-1]
+    }
+
+# Print final summary results
+print("\nFinal Summary Results After 5 Runs for Each Depth:")
 for depth in depths:
-    print(f"\nTraining GIN model with depth {depth}\n" + "-"*80)
-    gin_model = GINModel(num_features=dataset.num_features, num_classes=1, depth=depth).to(device)
-    gin_r2_scores = train_model_new(gin_model, dataset, batch_size=64, learning_rate=0.0005, target_idx=0, num_epochs=num_epochs)
-    
-    # Plot the R2 scores with a different color for each depth
-    plt.plot(range(num_epochs), gin_r2_scores, label=f'Depth = {depth}')
-
-# Add title and labels for GIN plot
-plt.title("R2 Score Across Different Number of Layers for GIN Model", fontsize=16)
-plt.xlabel('Epochs')
-plt.ylabel('R2 Score')
-plt.legend()
-plt.grid(True, linestyle='--', alpha=0.7)
-
-# Make the plot look nice
-plt.tight_layout()
-
-# Save the GIN plot to the results folder
-gin_plot_path = os.path.join(results_folder, 'GIN_depth_comparison.png')
-plt.savefig(gin_plot_path, format='png')
-plt.show()  # Show the second plot (optional)
+    print(f"\nDepth = {depth}")
+    print(f"Final GIN R² Mean: {results[depth]['gin_r2_mean']:.4f}, Std Dev: {results[depth]['gin_r2_std']:.4f}")
+    print(f"Final GAT R² Mean: {results[depth]['gat_r2_mean']:.4f}, Std Dev: {results[depth]['gat_r2_std']:.4f}")
+    print(f"Final GCN R² Mean: {results[depth]['gcn_r2_mean']:.4f}, Std Dev: {results[depth]['gcn_r2_std']:.4f}")
