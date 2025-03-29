@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import pickle
 import numpy as np
 
-from models.training import _train_model_new
-from models.models import GATModel, GINModel, GCNModel
+from models_and_training.training import _train_model_new
+from models_and_training.models import GATModel, GINModel, GCNModel
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
